@@ -18,3 +18,80 @@ The plan is to first dedupe the Organization names and create an Org ID. Then us
 # Prework
 
 Ran both lists of data "Master-Agency-Finder" and "ResourcesCovid" though OpenRefine and clustered the org names. 
+
+
+
+```{r Import data, include=FALSE}
+resources <- read_csv("data/MasterList-Agency-Finder.csv")
+
+covid_res <- read_csv("data/ResourcesCOVID.csv")
+```
+
+
+
+Rename first column of resources to identify data.
+
+```{r}
+resources <- rename(resources, 'MSheetID' = 'Column'  )
+```
+
+
+Combine two sheets into one dataframe for preparation in the Dedupe of Orgs.
+
+Step1: shorten dataframes into only the necessary columns for the dedupe of orgs.
+
+
+```{r}
+covid_res.df <- select(covid_res, CSheetID, Org, 'Program Name', 'Street Address', City, Zip )
+
+covid_res.df <- rename(covid_res.df, c('ID' = 'CSheetID', 'Org' = 'Org', 'Program' = 'Program Name','Street' ='Street Address'))
+```
+
+
+
+
+```{r}
+resources.df <- select(resources, MSheetID, `Organization Name`, 'Program Name', 'Street Address', City, Zip)
+
+resources.df<- rename(resources.df, c('ID' = 'MSheetID', 'Org' = 'Organization Name', 'Program' = 'Program Name', 'Street' = 'Street Address' ))
+```
+
+
+Step2: combine table rows
+
+```{r}
+comb_res <- bind_rows( covid_res.df, resources.df)
+```
+
+Replace error with zip endding in '.0'
+
+```{r}
+comb_res <- comb_res %>% 
+  mutate(Zip= str_remove(Zip, "\\.0"))
+```
+
+
+
+
+export file out
+```{r}
+write_csv(comb_res, "data/comb_res.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
