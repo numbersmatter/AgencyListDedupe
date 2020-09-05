@@ -161,3 +161,19 @@ explore_covid <-filter(covid_res.clustered, cluster_id %in% nonJoinCR$value)
 explore_res <- filter(resources.Clustered, cluster_id %in% nonJoinRC$value)
 ```
 
+
+```{r}
+filter(explore_covid, Org != 'Guilford County Schools')
+```
+
+
+Will add 17 programs from Covid resource list to master resource list.
+
+
+Then extract orgs from that list.
+
+
+Extract Service types from that unique list as well.
+
+
+
