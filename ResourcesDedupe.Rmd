@@ -1,0 +1,20 @@
+---
+title: "Dedupe Resource List"
+output: html_notebook
+---
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+```
+
+
+# Purpose 
+Dedupe Resource Lists for Covid and resource directory.
+
+The plan is to first dedupe the Organization names and create an Org ID. Then use Org ID and Program name to dedupe programs.
+
+
+
+# Prework
+
+Ran both lists of data "Master-Agency-Finder" and "ResourcesCovid" though OpenRefine and clustered the org names. 
