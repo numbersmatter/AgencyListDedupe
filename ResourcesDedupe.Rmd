@@ -88,15 +88,76 @@ program_clusters <- read_csv("data/Org Resource List.csv")
 
 
 
+Add Cluster Ids to resource columns
+```{r}
+# create df's to store new tables
+
+resources.Clustered <- resources
+
+covid_res.clustered <- covid_res
+
+```
 
 
 
+create joining table
+```{r}
+cluster_join <- select(program_clusters, cluster_id, id)
+```
+
+
+left joins
+```{r}
+resources.Clustered <- left_join(resources.Clustered, cluster_join, by= c('MSheetID'= 'id'))
+
+#relocate joined cluster column to position 2
+resources.Clustered <- resources.Clustered %>% 
+  relocate(cluster_id, .after = MSheetID)
+```
+
+```{r}
+covid_res.clustered<- left_join(covid_res.clustered, cluster_join, by = c("CSheetID"='id'))
+
+
+# relocate cluster id column to position 2
+covid_res.clustered <- covid_res.clustered %>% 
+  relocate(cluster_id, .after = CSheetID)
+
+```
 
 
 
+Count number of distinct programs
+```{r}
+n_distinct(cluster_join$cluster_id)
+
+```
+
+```{r}
+n_distinct(covid_res.clustered$cluster_id)
+
+n_distinct(resources.Clustered$cluster_id)
+```
+
+```{r}
+covid.unique<- as_tibble(  unique(covid_res.clustered$cluster_id))
+
+resources.unique <- as_tibble(unique(resources.Clustered$cluster_id))
+```
 
 
+```{r}
+nonJoinCR <- anti_join(covid.unique, resources.unique)
+
+nonJoinRC <- anti_join(resources.unique, covid.unique)
+```
 
 
+```{r}
+explore_covid <-filter(covid_res.clustered, cluster_id %in% nonJoinCR$value)
+```
 
+```{r}
+explore_res <- filter(resources.Clustered, cluster_id %in% nonJoinRC$value)
+```
 
