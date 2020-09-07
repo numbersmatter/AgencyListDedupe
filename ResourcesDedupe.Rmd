@@ -362,9 +362,33 @@ write_csv(Master_Resource_List, "data/Master_Resource_list.csv")
 
 
 
+import Orgs clustered
+```{r}
+Org_master_list <- read_csv('data/Org_Master_List_Clustered.csv')
 
 
+Org_master_list<- Org_master_list %>% 
+  rename('cluster_id_Org'='cluster_id')
+```
 
+
+Dedupe Org List
+
+```{r}
+Org_master_list.Dedupe <- Org_master_list %>% 
+  group_by(cluster_id_Org) %>% 
+  summarise(Org= first(org),
+            street_address=first(street_address),
+            city= first(city),
+            zip = first(zip),
+            n_sources= first(n_sources))
+
+```
+
+```{r}
+na_Org_addresses<- Org_master_list.Dedupe %>% 
+  filter(is.na(street_address))
+```
 
 
 
