@@ -75,7 +75,7 @@ comb_res <- comb_res %>%
 
 export file out
 ```{r}
-write_csv(comb_res, "data/comb_res.csv")
+#write_csv(comb_res, "data/comb_res.csv")
 ```
 
 
@@ -163,7 +163,7 @@ explore_res <- filter(resources.Clustered, cluster_id %in% nonJoinRC$value)
 
 
 ```{r}
-filter(explore_covid, Org != 'Guilford County Schools')
+programs_add <-filter(explore_covid, Org != 'Guilford County Schools')
 ```
 
 
@@ -174,6 +174,210 @@ Then extract orgs from that list.
 
 
 Extract Service types from that unique list as well.
+
+
+First exact subset of columns to combine from both lists. 
+
+```{r}
+# subset of resources list
+resource.comb <- select(
+  resources.Clustered,
+  cluster_id,
+  'Program Name',
+  'Organization Name'
+)
+
+resource.comb <- rename(resource.comb, 'Org' ='Organization Name')
+
+```
+
+
+
+```{r}
+covid.comb <- select(
+  covid_res.clustered,
+  cluster_id,
+  'Program Name',
+  Org
+)
+```
+
+
+```{r}
+#filter covid.comb to just the programs to add
+covid.comb.add <-filter(
+  covid.comb,
+  cluster_id %in% programs_add$cluster_id
+)
+
+```
+
+
+
+
+
+
+```{r}
+# combine sublist together
+Master_Resource_List <- bind_rows(resource.comb, covid.comb.add)
+```
+
+
+Function to add all appearances.
+```{r}
+appearances_list<- function(clustId){
+  clusters = cluster_join
+  
+  clusters<- clusters %>% 
+    filter( cluster_id==clustId)
+  
+  a = as.vector(clusters$id)
+  
+  
+ return( paste0(a, collapse = ";  "))
+  
+}
+
+appearances_list_vector <- Vectorize(appearances_list)
+```
+
+
+sanity check
+```{r}
+test.clusters<-count(cluster_join, cluster_id)
+
+test2 <- filter(cluster_join, cluster_id =='ae0abbbc-a00d-4d21-ac6a-73764881e9b8')
+
+```
+
+
+
+```{r}
+appearances_list('ae0abbbc-a00d-4d21-ac6a-73764881e9b8')
+```
+Passed sanity check
+
+
+
+```{r}
+#combine apperances in master list
+Master_Resource_List<- Master_Resource_List %>% 
+  mutate(sources = appearances_list_vector(cluster_id))
+
+```
+
+
+
+```{r}
+#remove duplicates and grad first instance only
+Master_Resource_List <- Master_Resource_List %>% 
+  group_by(cluster_id) %>% 
+  summarise(Progam = first(`Program Name`),
+            Org = first(Org),
+            sources= first(sources))
+```
+
+
+
+```{r}
+# count the number of sources
+
+Master_Resource_List <-Master_Resource_List %>% 
+  mutate(n_sources= str_count(sources,';') + 1) %>%  # total number of sources
+  mutate(M_n_sources = str_count(sources, 'M')) %>%  # num of sources from resources
+  mutate(C_n_sources = str_count(sources,'C'))      # num of sources from covid list   
+
+```
+
+
+
+```{r}
+Master_Resource_List.test<- Master_Resource_List %>% 
+  filter(n_sources==2)
+```
+
+
+Add addresses to programs to aide in Org dedupe
+
+Create a subset of resources with just the address fields we need
+
+```{r}
+
+resources.Addresses <- resources.Clustered %>% 
+  select(MSheetID, cluster_id, `Street Address`, City, Zip)
+```
+
+Ensure only one cluster in the resources.
+```{r}
+Remove_values <- Master_Resource_List %>% 
+  filter(M_n_sources>1)
+
+Remove_values<- Remove_values$cluster_id
+```
+
+```{r}
+resources.Addresses <- resources.Addresses %>% 
+  filter(!cluster_id %in% Remove_values)
+```
+
+
+
+
+left join of the data sets with Master_List
+
+
+```{r}
+Master_Resource_List <- left_join(Master_Resource_List, resources.Addresses, by= "cluster_id")
+```
+
+
+
+
+
+Rename cluster_id because we will run this though a second dedupe
+
+```{r}
+Master_Resource_List <- Master_Resource_List %>% 
+  rename('cluster_id_program' = 'cluster_id')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creat list of Orgs from Master List
+
+```{r}
+write_csv(Master_Resource_List, "data/Master_Resource_list.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
