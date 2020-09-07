@@ -357,7 +357,7 @@ Master_Resource_List <- Master_Resource_List %>%
 Creat list of Orgs from Master List
 
 ```{r}
-write_csv(Master_Resource_List, "data/Master_Resource_list.csv")
+#write_csv(Master_Resource_List, "data/Master_Resource_list.csv")
 ```
 
 
