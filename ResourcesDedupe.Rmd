@@ -22,8 +22,10 @@ Ran both lists of data "Master-Agency-Finder" and "ResourcesCovid" though OpenRe
 
 
 ```{r Import data, include=FALSE}
+#Agency Finder
 resources <- read_csv("data/MasterList-Agency-Finder.csv")
 
+#Covid resources
 covid_res <- read_csv("data/ResourcesCOVID.csv")
 ```
 
@@ -185,6 +187,7 @@ resource.comb <- select(
   cluster_id,
   'Program Name',
   'Organization Name'
+  
 )
 
 resource.comb <- rename(resource.comb, 'Org' ='Organization Name')
@@ -391,16 +394,52 @@ na_Org_addresses<- Org_master_list.Dedupe %>%
 ```
 
 
+```{r}
+#write table for master list
+
+#write_csv(Org_master_list, 'data/org_master_list.csv')
+```
 
 
 
+Create Program List
+```{r}
+program_list <- resource.comb %>% 
+  rename(cluster_id_program = cluster_id) %>% 
+  group_by(cluster_id_program) %>% 
+  summarise(cluster_id_program = first(cluster_id_program),
+            Program_Name = first(`Program Name`))
+```
+
+```{r}
+program_list.test <- left_join(program_list, Master_Resource_list, by = "cluster_id_program")
+
+```
+
+
+```{r}
+Org_master_list.comb <- select(Org_master_list,
+                               cluster_id_program,
+                               cluster_id_Org,)
 
 
 
+program_list.test2 <- left_join(program_list.test, Org_master_list.comb, by = "cluster_id_program")
+```
+
+Combine from Agency Finder
+
+```{r}
+program_list.test3 <- left_join(program_list.test2, MasterList_Agency_Finder, by= c('MSheetID'= 'Column'))
+```
 
 
 
+```{r}
+write_csv(Org_master_list.Dedupe, 'data/orgl_list_upload.csv')
 
+write_csv(program_list.test3, 'data/program_list.csv')
+```
 
 
 
