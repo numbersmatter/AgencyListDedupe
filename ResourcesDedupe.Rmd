@@ -8,93 +8,200 @@ library(tidyverse)
 ```
 
 
+Listing of paths for where Rstudio can find certain resources.
+```{r}
+#Starting Resources
+resources_path <- "data/MasterList-Agency-Finder.csv"
+
+covid_resources_path<- "data/ResourcesCOVID.csv"
+
+
+# Resources created in deduplication process
+
+comb_res_path <- "data/comb_res.csv" # this resource is created in Step 3 of Preparation
+
+
+
+
+
+
+# resources from dedupe.io
+program_clusters_path <-"data/Org Resource List.csv"  # programs with cluster program ID
+
+
+```
+
+
+
 # Purpose 
 Dedupe Resource Lists for Covid and resource directory.
 
-The plan is to first dedupe the Organization names and create an Org ID. Then use Org ID and Program name to dedupe programs.
+The plan is to first dedupe the Organization names and program names. 
 
 
 
-# Prework
+# Preparation Work before deduplication
 
-Ran both lists of data "Master-Agency-Finder" and "ResourcesCovid" though OpenRefine and clustered the org names. 
+### Step 1: Open Refine Cleanup
+
+Ran both lists of data "Master-Agency-Finder" and "ResourcesCovid" though OpenRefine and corrected Standardize Org names with the cluster feature.
+
+
+### Step 2: Pulled lists of cleaned resources into Rstudio 
 
 
 
+
+Importing of resources into RStudio
 ```{r Import data, include=FALSE}
-#Agency Finder
-resources <- read_csv("data/MasterList-Agency-Finder.csv")
+#import datas into Rstudio
+
+#resources sheet
+resources <- read_csv(resources_path)
 
 #Covid resources
-covid_res <- read_csv("data/ResourcesCOVID.csv")
+covid_res <- read_csv(covid_resources_path)
 ```
 
 
 
-Rename first column of resources to identify data.
+Rename columns in our dataframe to make them easier to work with.
 
 ```{r}
-resources <- rename(resources, 'MSheetID' = 'Column'  )
-```
+resources <- resources %>% 
+  rename('MSheetID' = 'Column','Org' = 'Organization Name', 'Program' = 'Program Name', 'Street' = 'Street Address') %>% 
+  mutate(Zip = str_remove(Zip, "\\.0")) # removes the unnecessary ".0" from zip code
 
 
-Combine two sheets into one dataframe for preparation in the Dedupe of Orgs.
-
-Step1: shorten dataframes into only the necessary columns for the dedupe of orgs.
-
-
-```{r}
-covid_res.df <- select(covid_res, CSheetID, Org, 'Program Name', 'Street Address', City, Zip )
-
-covid_res.df <- rename(covid_res.df, c('ID' = 'CSheetID', 'Org' = 'Org', 'Program' = 'Program Name','Street' ='Street Address'))
+covid_res <- covid_res %>% 
+  rename('Org' = 'Org', 'Program' = 'Program Name','Street' ='Street Address')
 ```
 
 
 
 
-```{r}
-resources.df <- select(resources, MSheetID, `Organization Name`, 'Program Name', 'Street Address', City, Zip)
+### Step 3: Creating a Single Resources dataframe
 
-resources.df<- rename(resources.df, c('ID' = 'MSheetID', 'Org' = 'Organization Name', 'Program' = 'Program Name', 'Street' = 'Street Address' ))
+Combine two sheets into one dataframe for preparation in the deduplication process.
+
+Shorten dataframes into only the necessary columns for the deduplication 
+
+
+Which columns do we want to keep from each dataframe?
+```{r}
+# Define variables of columns to use in the dedupe process
+resources_columns_keep <- c('MSheetID', 'Org', 'Program', 'Street', 'City', 'Zip')
+
+
+covid_res_columns_keep <- c('CSheetID',  'Org', 'Program', 'Street', 'City', 'Zip' )
 ```
 
 
-Step2: combine table rows
 
 ```{r}
+#create  resources dataframe with columns selected
+resources.df <- select(resources,
+                       resources_columns_keep
+                       )
+
+# create covid dataframe with columns selected
+covid_res.df <- select(covid_res, 
+                       covid_res_columns_keep
+                       )
+```
+
+
+
+
+
+
+Create a combined resources dataframe by appending the rows of resources.df to the rows of covid_res.df
+
+
+First, you need to make sure all columns have the same name.
+
+```{r}
+#test whether column names are exactly the same
+colnames(resources.df) == colnames(covid_res.df)
+
+
+colnames(resources.df)
+
+colnames(covid_res.df)
+
+
+```
+
+
+Need to remain the ID column to just a generic 'ID' for both.
+
+```{r}
+#renaming to generic ID column
+resources.df<- rename(resources.df, 'ID' = 'MSheetID')
+
+covid_res.df<- rename(covid_res.df, 'ID' = 'CSheetID')
+
+```
+
+
+Check colnames again
+```{r}
+#test whether column names are exactly the same
+colnames(resources.df) == colnames(covid_res.df)
+
+
+colnames(resources.df)
+
+colnames(covid_res.df)
+```
+
+Since column names are the same we can append rows of resources to covid resources
+
+```{r}
+# creating combined resources dataframe by appending rows
 comb_res <- bind_rows( covid_res.df, resources.df)
 ```
 
-Replace error with zip endding in '.0'
-
-```{r}
-comb_res <- comb_res %>% 
-  mutate(Zip= str_remove(Zip, "\\.0"))
-```
 
 
-
+Step 3: Export this combined resource dataframe 
 
 export file out
 ```{r}
-#write_csv(comb_res, "data/comb_res.csv")
+write_csv(comb_res, comb_res_path)
 ```
 
 
+# Deduplication Process
 
+### Step 1: Create Clustering IDs
+
+The deduplication process uses machine learning to help us create Ids of clusters for each Program and Organization. 
+
+For this project this process was accomplished by using dedupe.io which has a offers the first 1,000 rows for free. Due to the time constraints we use this offer to dramatically spead up this process for creating clustering IDs.
+
+
+
+
+## Use Clustering IDs to create tables needed in Database design
+
+
+### Step 2: Import data from clustering process into Rstudio 
 import clusters from dedupe Step
 
 ```{r}
-program_clusters <- read_csv("data/Org Resource List.csv")
+program_clusters <- read_csv(program_clusters_path)
 ```
 
 
 
-Add Cluster Ids to resource columns
-```{r}
-# create df's to store new tables
+### Step 3: Add program clustering Ids to dataframes
 
-resources.Clustered <- resources
+
+```{r}
+# create df's to store new tables with clustering IDs
+
+resources.clustered <- resources
 
 covid_res.clustered <- covid_res
 
@@ -102,22 +209,28 @@ covid_res.clustered <- covid_res
 
 
 
-create joining table
+Create joining table
 ```{r}
-cluster_join <- select(program_clusters, cluster_id, id)
+cluster_join <- select(program_clusters,
+                       #fields
+                       cluster_id, 
+                       id)
 ```
 
 
-left joins
+
+
+Use left joins to add the program cluster ID to organizations to tables we just created.
 ```{r}
-resources.Clustered <- left_join(resources.Clustered, cluster_join, by= c('MSheetID'= 'id'))
+# Perform tasks for resources dataframe
+resources.clustered <- left_join(resources.clustered, cluster_join, by= c('MSheetID'= 'id'))
 
 #relocate joined cluster column to position 2
-resources.Clustered <- resources.Clustered %>% 
+resources.clustered <- resources.clustered %>% 
   relocate(cluster_id, .after = MSheetID)
-```
 
-```{r}
+
+# Perform tasks for covid dataframe
 covid_res.clustered<- left_join(covid_res.clustered, cluster_join, by = c("CSheetID"='id'))
 
 
@@ -129,61 +242,62 @@ covid_res.clustered <- covid_res.clustered %>%
 
 
 
-Count number of distinct programs
-```{r}
-n_distinct(cluster_join$cluster_id)
+### Step 4: Add the Unique Covid Programs to resources list
 
-```
 
-```{r}
-n_distinct(covid_res.clustered$cluster_id)
-
-n_distinct(resources.Clustered$cluster_id)
-```
+Create dataframes of the unique program cluster ids in resources and covid dataframes
 
 ```{r}
 covid.unique<- as_tibble(  unique(covid_res.clustered$cluster_id))
 
-resources.unique <- as_tibble(unique(resources.Clustered$cluster_id))
+resources.unique <- as_tibble(unique(resources.clustered$cluster_id))
+```
+
+
+These dataframes allow us to identify clusterIds present in one dataframe but not the other.
+```{r}
+#Covid program cluster IDs not matched to a resource program dataframe
+covid_res_clusterid_not_matched <- anti_join(covid.unique, resources.unique)
+
+
+
+# resources program cluster IDs not matched to the covid program dataframes
+resources_clusterid_not_matched <- anti_join(resources.unique, covid.unique)
+
+```
+
+
+Filter to create data frame of covid resources not present in resources list.
+```{r}
+covid_res_unique <-filter(covid_res.clustered, 
+                          #by
+                          cluster_id %in% covid_res_clusterid_not_matched$value)
+```
+
+
+
+Create dataframe of covid resources which will be added to the resources list
+```{r}
+programs_add <-filter(covid_res_unique, 
+                      #by where org is not Guilford County Schools
+                      Org != 'Guilford County Schools')
 ```
 
 
 ```{r}
-nonJoinCR <- anti_join(covid.unique, resources.unique)
-
-nonJoinRC <- anti_join(resources.unique, covid.unique)
+nrow(programs_add)
 ```
 
 
-```{r}
-explore_covid <-filter(covid_res.clustered, cluster_id %in% nonJoinCR$value)
-```
-
-```{r}
-explore_res <- filter(resources.Clustered, cluster_id %in% nonJoinRC$value)
-```
+Will add `r nrow(programs_add)` programs from Covid resource list to master resource list.
 
 
-```{r}
-programs_add <-filter(explore_covid, Org != 'Guilford County Schools')
-```
-
-
-Will add 17 programs from Covid resource list to master resource list.
-
-
-Then extract orgs from that list.
-
-
-Extract Service types from that unique list as well.
-
-
-First exact subset of columns to combine from both lists. 
+### Step 5 create master resource list
 
 ```{r}
 # subset of resources list
 resource.comb <- select(
-  resources.Clustered,
+  resources.clustered,
   cluster_id,
   'Program Name',
   'Organization Name'
@@ -306,7 +420,7 @@ Create a subset of resources with just the address fields we need
 
 ```{r}
 
-resources.Addresses <- resources.Clustered %>% 
+resources.Addresses <- resources.clustered %>% 
   select(MSheetID, cluster_id, `Street Address`, City, Zip)
 ```
 
@@ -412,7 +526,7 @@ program_list <- resource.comb %>%
 ```
 
 ```{r}
-program_list.test <- left_join(program_list, Master_Resource_list, by = "cluster_id_program")
+program_list.test <- left_join(program_list, Master_Resource_List, by = "cluster_id_program")
 
 ```
 
@@ -428,6 +542,10 @@ program_list.test2 <- left_join(program_list.test, Org_master_list.comb, by = "c
 ```
 
 Combine from Agency Finder
+```{r}
+MasterList_Agency_Finder <- read_csv("data/MasterList-Agency-Finder.csv")
+```
+
 
 ```{r}
 program_list.test3 <- left_join(program_list.test2, MasterList_Agency_Finder, by= c('MSheetID'= 'Column'))
